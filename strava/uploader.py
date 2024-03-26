@@ -20,7 +20,7 @@ class handler(BaseHTTPRequestHandler):
 
 
 class TokenHandler(HTTPServer):
-    def __init__(self, port=8080):
+    def __init__(self, port):
         self.received = None
         HTTPServer.__init__(self, ("localhost", port), handler)
 
@@ -34,10 +34,11 @@ def get_client_config():
 def get_tokens():
     client = stravalib.client.Client()
     client_id, client_secret = get_client_config()
-    th = TokenHandler()
+    port = 8080
+    th = TokenHandler(port)
     authorize_url = client.authorization_url(
         client_id=client_id,
-        redirect_uri=f"http://{th.server_address}",
+        redirect_uri=f"http://localhost:{port}",
         scope=["profile:read_all", "activity:read_all", "activity:write"],
     )
     webbrowser.open_new_tab(authorize_url)
