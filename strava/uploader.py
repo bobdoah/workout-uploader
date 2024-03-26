@@ -1,49 +1,21 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import parse_qs
-
-import tomllib
+import os
+import argparse
 import stravalib
-import webbrowser
 
+from token_handler import get_tokens
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.server.received = parse_qs(self.path.split("?", 1)[1])
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(
-            b"""<html>
-            <head><title>Strava auth code received</title></head>
-            <body><p>This window can be closed</p></body>
-            </html>"""
-        )
+access, refresh = get_tokens()
+client = stravalib.Client(access)
 
+p = argparse.ArgumentParser(description="Upload directory of activities to Strava")
+p.add_argument("activities", nargs="*", type=argparse.FileType("rb"))
+p.add_argument("-a", "--activity-type", choices=("ride", "run", "walk"))
+p.add_argument("-b", "--bike")
+p.add_argument("-c", "--commute", action=argparse.BooleanOptionalAction)
+args = p.parse_args()
 
-class TokenHandler(HTTPServer):
-    def __init__(self, port):
-        self.received = None
-        HTTPServer.__init__(self, ("localhost", port), handler)
-
-
-def get_client_config():
-    with open("strava.toml", "rb") as f:
-        data = tomllib.load(f)
-    return data["client_id"], data["client_secret"]
-
-
-def get_tokens():
-    client = stravalib.client.Client()
-    client_id, client_secret = get_client_config()
-    port = 8080
-    th = TokenHandler(port)
-    authorize_url = client.authorization_url(
-        client_id=client_id,
-        redirect_uri=f"http://localhost:{port}",
-        scope=["profile:read_all", "activity:read_all", "activity:write"],
-    )
-    webbrowser.open_new_tab(authorize_url)
-    th.handle_request()
-    token = client.exchange_code_for_token(
-        client_id=client_id, client_secret=client_secret, code=th.received["code"]
-    )
-    return token["access_token"], token["refresh_token"]
+for file in args.activities:
+    _, ext = os.path.splitext(file.name)
+    upload = client.upload_activity(file, ext[1:], commute=args.commute)
+    activity = upload.wait()
+    print(f"http://strava.com/activities/{activity.id:d}")
