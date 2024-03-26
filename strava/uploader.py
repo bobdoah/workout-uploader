@@ -27,7 +27,7 @@ def get_client_config():
     return data["client_id"], data["client_secret"]
 
 
-def get_authorized_client():
+def get_tokens():
     client_id, client_secret = get_client_config()
     th = TokenHandler()
     authorize_url = stravalib.client.authorization_url(
@@ -40,3 +40,4 @@ def get_authorized_client():
     token = stravalib.client.exchange_code_for_token(
         client_id=client_id, client_secret=client_secret, code=th.received["code"]
     )
+    return token["access_token"], token["refresh_token"]
