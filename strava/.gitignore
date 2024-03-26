@@ -195,4 +195,4 @@ tags
 [._]*.un~
 
 # End of https://www.toptal.com/developers/gitignore/api/vim,python
- strava.toml
+strava.toml
