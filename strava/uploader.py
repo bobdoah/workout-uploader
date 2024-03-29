@@ -1,7 +1,7 @@
 import os
 import argparse
 
-from token_handler import get_authorized_client
+from strava_client import get_authorized_client
 
 
 def main():
