@@ -16,7 +16,9 @@ def main():
     client = get_authorized_client()
     for file in args.activities:
         _, ext = os.path.splitext(file.name)
-        upload = client.upload_activity(file, ext[1:], commute=args.commute)
+        upload = client.upload_activity(
+            file, ext[1:], commute=args.commute, activity_type=args.activity_type
+        )
         activity = upload.wait()
         print(f"http://strava.com/activities/{activity.id:d}")
 
