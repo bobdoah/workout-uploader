@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import argparse
 
@@ -17,7 +18,7 @@ def main():
         _, ext = os.path.splitext(file.name)
         upload = client.upload_activity(file, ext[1:], commute=args.commute)
         activity = upload.wait()
-        print(f"http://strava.com/activities/{reactivity.id:d}")
+        print(f"http://strava.com/activities/{activity.id:d}")
 
 
 if __name__ == "__main__":
