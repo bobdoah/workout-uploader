@@ -2,10 +2,14 @@
 import argparse
 import garth
 import tomllib
-import datetime
-import logging
+import requests
+import http
+import os
 
 from garth.exc import GarthException
+
+http.client.HTTPConnection.debuglevel = 5
+requests.packages.urllib3.add_stderr_logger()
 
 
 def session_config() -> str:
@@ -43,23 +47,10 @@ def main():
 
     authenticate()
     for file in args.activities:
-        uploaded = garth.client.upload(file)
-        upload_uuid = uploaded["detailedImportResult"]["uploadUuid"]["uuid"].replace(
-            "-", ""
-        )
-        print(f"upload result: {uploaded}")
-        timestamp = "".join(f"{datetime.datetime.now().timestamp():0.3f}".split("."))
-        logger = logging.getLogger("requests")
-        logger.setLevel(logging.DEBUG)
-        result = garth.client.get(
-            "connect",
-            f"/activity-service/activity/status/{timestamp}/{upload_uuid}",
-            headers={
-                "Accept": "application/json, text/plain/, */*",
-                "di-backend": "connectapi.garmin.com",
-            },
-        )
-        print(result)
+        fname = os.path.basename(file.name)
+        files = {"file": (fname, file)}
+        resp = garth.client.post("connectapi", "/upload-service/upload", files=files)
+        print(f"upload result: {resp}")
 
 
 # GET to activity-service/activity/status/1711913521944/<uuid>
