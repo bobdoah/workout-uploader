@@ -2,14 +2,11 @@
 import argparse
 import garth
 import tomllib
-import requests
-import http
 import os
+import time
 
 from garth.exc import GarthException
-
-http.client.HTTPConnection.debuglevel = 5
-requests.packages.urllib3.add_stderr_logger()
+from urllib.parse import urlparse
 
 
 def session_config() -> str:
@@ -50,10 +47,21 @@ def main():
         fname = os.path.basename(file.name)
         files = {"file": (fname, file)}
         resp = garth.client.post("connectapi", "/upload-service/upload", files=files)
-        print(f"upload result: {resp}")
-
-
-# GET to activity-service/activity/status/1711913521944/<uuid>
+        print(f"upload result: {resp.json()}")
+        print(f"headers: {resp.headers}")
+        location = resp.headers["location"]
+        path = urlparse(location).path
+        print(f"location: {location}, path: {path}")
+        timeout = 600
+        start = time.time()
+        status
+        result = {}
+        while time.time() - start < timeout:
+            resp = garth.client.get("connectapi", path)
+            if resp.status_code >= 200 and resp.status_code < 300:
+                result = resp.json()
+                break
+            time.sleep(10)
 
 
 if __name__ == "__main__":
