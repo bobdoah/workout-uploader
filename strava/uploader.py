@@ -2,7 +2,9 @@
 import argparse
 import os
 
+from bs4 import BeautifulSoup
 from strava_client import get_authorized_client
+from stravalib.exc import ActivityUploadFailed
 
 
 def main():
@@ -20,14 +22,21 @@ def main():
         gear_id = bikes[args.bike]
     for file in args.activities:
         _, ext = os.path.splitext(file.name)
-        upload = client.upload_activity(
-            file, ext[1:], commute=args.commute, activity_type=args.activity_type
-        )
-        activity = upload.wait()
-        print(f"uploaded: http://strava.com/activities/{activity.id:d}")
+        try:
+            upload = client.upload_activity(
+                file, ext[1:], commute=args.commute, activity_type=args.activity_type
+            )
+            activity = upload.wait()
+            print(f"uploaded: http://strava.com/activities/{activity.id:d}")
+        except ActivityUploadFailed as err:
+            err_string = str(err)
+            if "duplicate" not in err_string:
+                raise err
+            href = BeautifulSoup(err_string).a["href"]
+            print(f"skipped duplicate of: http://strava.com{href}")
         if gear_id:
             client.update_activity(activity_id=activity.id, gear_id=gear_id)
-            print(f"set gear to {args.bike}")
+            print(f"set gear to: {args.bike}")
 
 
 if __name__ == "__main__":
