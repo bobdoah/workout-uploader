@@ -28,14 +28,16 @@ def main():
             )
             activity = upload.wait()
             print(f"uploaded: http://strava.com/activities/{activity.id:d}")
+            activity_id = activity.id
         except ActivityUploadFailed as err:
             err_string = str(err)
             if "duplicate" not in err_string:
                 raise err
             href = BeautifulSoup(err_string).a["href"]
+            activity_id = href.split("/")[-1]
             print(f"skipped duplicate of: http://strava.com{href}")
         if gear_id:
-            client.update_activity(activity_id=activity.id, gear_id=gear_id)
+            client.update_activity(activity_id=activity_id, gear_id=gear_id)
             print(f"set gear to: {args.bike}")
 
 
