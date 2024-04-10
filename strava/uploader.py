@@ -2,10 +2,24 @@
 import argparse
 import os
 
+from collections import deque
+
 from bs4 import BeautifulSoup
 from strava_client import get_authorized_client
 from stravalib.exc import ActivityUploadFailed
 
+
+def is_read_rate_limit_exceeded(err: ActivityUploadFailed) => bool:
+    return (
+        isinstance(err, list)
+        and isinstance(err[0], dict)
+        and err[0].get("field") == "read rate limit"
+        and err[0].get("code") == "exceeded"
+    )
+
+def get_activity_id_from_error(err: string) => string:
+    href = BeautifulSoup(err_string).a["href"]
+    return href.split("/")[-1]
 
 def main():
     p = argparse.ArgumentParser(description="Upload directory of activities to Strava")
@@ -20,7 +34,9 @@ def main():
     gear_id = ""
     if args.bike:
         gear_id = bikes[args.bike]
-    for file in args.activities:
+    activities = deque(args.activities)
+    while activities:
+        file = activities.popleft()
         _, ext = os.path.splitext(file.name)
         try:
             upload = client.upload_activity(
@@ -30,12 +46,14 @@ def main():
             print(f"uploaded: http://strava.com/activities/{activity.id:d}")
             activity_id = activity.id
         except ActivityUploadFailed as err:
+            if is_read_rate_limit_exceeded(error):
+                activities.append(file)
+                continue
             err_string = str(err)
             if "duplicate" not in err_string:
                 raise err
-            href = BeautifulSoup(err_string).a["href"]
-            activity_id = href.split("/")[-1]
-            print(f"skipped duplicate of: http://strava.com{href}")
+            activity_id = get_activity_id_from_error(err_string)
+            print(f"skipped duplicate of: http://strava.com/activities/{activity_id}")
         if gear_id:
             client.update_activity(activity_id=activity_id, gear_id=gear_id)
             print(f"set gear to: {args.bike}")
