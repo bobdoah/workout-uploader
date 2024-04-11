@@ -9,7 +9,7 @@ from strava_client import get_authorized_client
 from stravalib.exc import ActivityUploadFailed
 
 
-def is_read_rate_limit_exceeded(err: ActivityUploadFailed) => bool:
+def is_read_rate_limit_exceeded(err: ActivityUploadFailed) -> bool:
     return (
         isinstance(err, list)
         and isinstance(err[0], dict)
@@ -17,9 +17,11 @@ def is_read_rate_limit_exceeded(err: ActivityUploadFailed) => bool:
         and err[0].get("code") == "exceeded"
     )
 
-def get_activity_id_from_error(err: string) => string:
-    href = BeautifulSoup(err_string).a["href"]
+
+def get_activity_id_from_error(err: str) -> str:
+    href = BeautifulSoup(err).a["href"]
     return href.split("/")[-1]
+
 
 def main():
     p = argparse.ArgumentParser(description="Upload directory of activities to Strava")
@@ -46,7 +48,7 @@ def main():
             print(f"uploaded: http://strava.com/activities/{activity.id:d}")
             activity_id = activity.id
         except ActivityUploadFailed as err:
-            if is_read_rate_limit_exceeded(error):
+            if is_read_rate_limit_exceeded(err):
                 activities.append(file)
                 continue
             err_string = str(err)
