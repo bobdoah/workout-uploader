@@ -27,19 +27,19 @@ def get_activity_id_from_error(err: str) -> int:
     return int(href.split("/")[-1])
 
 
-def get_gear_id(client: Client, bike: str) -> int:
+def get_gear_id(client: Client, bike: str) -> str:
     bikes = {b.name: b.id for b in client.get_athlete().bikes or []}
     if not bikes:
         raise Exception("No bikes found")
     gear_id = bikes[bike]
     if gear_id is None:
         raise Exception(f"No bike matching {bike} found")
-    return int(gear_id)
+    return gear_id
 
 
 def main():
     p = argparse.ArgumentParser(description="Upload directory of activities to Strava")
-    p.add_argument("activities", nargs="*", type=argparse.FileType("rb"))
+    p.add_argument("files", type=argparse.FileType("r"))
     p.add_argument("-a", "--activity-type", choices=("ride", "run", "walk"))
     p.add_argument("-b", "--bike")
     p.add_argument("-c", "--commute", action=argparse.BooleanOptionalAction)
@@ -47,31 +47,43 @@ def main():
 
     client = get_authorized_client()
     gear_id = get_gear_id(client, args.bike) if args.bike else None
-    activities = deque(args.activities)
-    while activities:
-        file = activities.popleft()
-        _, ext = os.path.splitext(file.name)
+
+    filenames = deque(args.files.readlines())
+    while filenames:
+        filename = filenames.popleft()
+        filename = filename.strip()
         try:
-            upload = client.upload_activity(
-                file, ext[1:], commute=args.commute, activity_type=args.activity_type
-            )
-            activity = upload.wait()
-            print(f"uploaded: http://strava.com/activities/{activity.id:d}")
-            if not activity.id:
-                raise Exception(f"Activity does not have an id {activity}")
-            activity_id = activity.id
-        except ActivityUploadFailed as err:
-            if is_read_rate_limit_exceeded(err):
-                activities.append(file)
-                continue
-            err_string = str(err)
-            if "duplicate" not in err_string:
-                raise err
-            activity_id = get_activity_id_from_error(err_string)
-            print(f"skipped duplicate of: http://strava.com/activities/{activity_id}")
-        if gear_id is not None:
-            client.update_activity(activity_id=activity_id, gear_id=gear_id)
-            print(f"set gear to: {args.bike}")
+            _, ext = os.path.splitext(filename)
+            print(f"uploading: {filename}")
+            with open(filename, "rb") as filehandle:
+                upload = client.upload_activity(
+                    filehandle,
+                    ext[1:],
+                    commute=args.commute,
+                    activity_type=args.activity_type,
+                )
+            try:
+                activity = upload.wait()
+                print(f"uploaded: http://strava.com/activities/{activity.id:d}")
+                if not activity.id:
+                    raise Exception(f"Activity does not have an id {activity}")
+                activity_id = activity.id
+            except ActivityUploadFailed as err:
+                err_string = str(err)
+                if "duplicate" not in err_string:
+                    raise err
+                activity_id = get_activity_id_from_error(err_string)
+                print(
+                    f"skipped duplicate of: http://strava.com/activities/{activity_id}"
+                )
+            if gear_id is not None:
+                client.update_activity(activity_id=activity_id, gear_id=gear_id)  # type: ignore
+                print(f"set gear to: {args.bike}")
+        except:
+            filenames.appendleft(f"{filename}\n")
+        finally:
+            with open(args.files.name, "w") as f:
+                f.writelines(filenames)
 
 
 if __name__ == "__main__":
