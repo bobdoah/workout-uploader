@@ -5,6 +5,7 @@ import os
 from collections import deque
 
 from bs4 import BeautifulSoup
+from stravalib.client import Client
 from strava_client import get_authorized_client
 from stravalib.exc import ActivityUploadFailed
 
@@ -18,9 +19,22 @@ def is_read_rate_limit_exceeded(err: ActivityUploadFailed) -> bool:
     )
 
 
-def get_activity_id_from_error(err: str) -> str:
-    href = BeautifulSoup(err).a["href"]
-    return href.split("/")[-1]
+def get_activity_id_from_error(err: str) -> int:
+    a = BeautifulSoup(err).a
+    if a is None:
+        raise Exception(f"Error string does not contain a link: {err}")
+    href = str(a["href"])
+    return int(href.split("/")[-1])
+
+
+def get_gear_id(client: Client, bike: str) -> int:
+    bikes = {b.name: b.id for b in client.get_athlete().bikes or []}
+    if not bikes:
+        raise Exception("No bikes found")
+    gear_id = bikes[bike]
+    if gear_id is None:
+        raise Exception(f"No bike matching {bike} found")
+    return int(gear_id)
 
 
 def main():
@@ -32,10 +46,7 @@ def main():
     args = p.parse_args()
 
     client = get_authorized_client()
-    bikes = {b.name: b.id for b in client.get_athlete().bikes}
-    gear_id = ""
-    if args.bike:
-        gear_id = bikes[args.bike]
+    gear_id = get_gear_id(client, args.bike) if args.bike else None
     activities = deque(args.activities)
     while activities:
         file = activities.popleft()
@@ -46,6 +57,8 @@ def main():
             )
             activity = upload.wait()
             print(f"uploaded: http://strava.com/activities/{activity.id:d}")
+            if not activity.id:
+                raise Exception(f"Activity does not have an id {activity}")
             activity_id = activity.id
         except ActivityUploadFailed as err:
             if is_read_rate_limit_exceeded(err):
@@ -56,7 +69,7 @@ def main():
                 raise err
             activity_id = get_activity_id_from_error(err_string)
             print(f"skipped duplicate of: http://strava.com/activities/{activity_id}")
-        if gear_id:
+        if gear_id is not None:
             client.update_activity(activity_id=activity_id, gear_id=gear_id)
             print(f"set gear to: {args.bike}")
 
