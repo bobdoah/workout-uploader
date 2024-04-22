@@ -10,12 +10,14 @@ from strava_client import get_authorized_client
 from stravalib.exc import ActivityUploadFailed
 
 
-def is_read_rate_limit_exceeded(err: ActivityUploadFailed) -> bool:
+def is_read_rate_limit_exceeded(err: Exception) -> bool:
+    if not isinstance(err, ActivityUploadFailed) or not isinstance(err.args, list):
+        return False
+    error_response = err.args[0]
     return (
-        isinstance(err, list)
-        and isinstance(err[0], dict)
-        and err[0].get("field") == "read rate limit"
-        and err[0].get("code") == "exceeded"
+        isinstance(error_response, dict)
+        and error_response.get("field") == "read rate limit"
+        and error_response.get("code") == "exceeded"
     )
 
 
@@ -53,6 +55,7 @@ def main():
         filename = filenames.popleft()
         filename = filename.strip()
         try:
+            # Upload files, skipping duplicates
             _, ext = os.path.splitext(filename)
             print(f"uploading: {filename}")
             with open(filename, "rb") as filehandle:
@@ -76,12 +79,19 @@ def main():
                 print(
                     f"skipped duplicate of: http://strava.com/activities/{activity_id}"
                 )
+            # Set the bike, even if it's a duplicate upload
             if gear_id is not None:
                 client.update_activity(activity_id=activity_id, gear_id=gear_id)  # type: ignore
                 print(f"set gear to: {args.bike}")
-        except:
+        except Exception as err:
+            # Retry the file if we catch an unhandleable exception
             filenames.appendleft(f"{filename}\n")
+            if is_read_rate_limit_exceeded(err):
+                print(f"retrying upload of {filename} due to read rate error")
+                continue
+            raise err
         finally:
+            # Write out the list of remaining files
             with open(args.files.name, "w") as f:
                 f.writelines(filenames)
 
