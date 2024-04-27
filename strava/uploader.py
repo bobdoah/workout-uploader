@@ -10,27 +10,6 @@ from strava_client import get_authorized_client
 from stravalib.exc import ActivityUploadFailed
 
 
-def is_read_rate_limit_exceeded(err: Exception) -> bool:
-    if not isinstance(err, ActivityUploadFailed):
-        print("err is not an instance of ActivityUploadFailed")
-        return False
-    if not isinstance(err.args, list):
-        print("err.args is not a list")
-        return False
-    error_response = err.args[0]
-    if not isinstance(error_response, dict):
-        print("error_response is not a dict")
-        return False
-    field = error_response.get("field")
-    code = error_response.get("code")
-    if field == "read rate limit" and code == "exceeded":
-        return True
-    print(
-        f'error_response field is {field} and code is {code}, not "read rate limit" and "exceeded"'
-    )
-    return False
-
-
 def get_activity_id_from_error(err: str) -> int:
     a = BeautifulSoup(err).a
     if a is None:
@@ -96,16 +75,12 @@ def main():
         except Exception as err:
             # Retry the file if we catch an unhandleable exception
             filenames.appendleft(f"{filename}\n")
-            if is_read_rate_limit_exceeded(err):
-                print(f"retrying upload of {filename} due to read rate error")
-                continue
-            print(f"not retrying {filename} as not read rate error")
-            raise err
-        finally:
             # Write out the list of remaining files
             print(f"updating {args.files.name} with current list of files")
             with open(args.files.name, "w") as f:
                 f.writelines(filenames)
+            # Reraise the exception so the script exits
+            raise err
 
 
 if __name__ == "__main__":
