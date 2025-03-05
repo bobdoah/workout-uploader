@@ -29,9 +29,13 @@ class TokenHandler(HTTPServer):
 
 def get_client_config(
     client_config: str,
-) -> tuple[int, str, str | None, str | None, int | None]:
-    with open(client_config, "rb") as f:
-        data = tomllib.load(f)
+) -> tuple[int | None, str | None, str | None, str | None, int | None]:
+    try:
+        with open(client_config, "rb") as f:
+            data = tomllib.load(f)
+    except FileNotFoundError:
+        print(f"client config: {client_config} does not exist, skipping read")
+        return (None, None, None, None, None, None)
     return (
         data["client_id"],
         data["client_secret"],
@@ -82,6 +86,7 @@ def get_authorized_client(client_config: str) -> stravalib.Client:
             client_id, client_secret, refresh_token
         )
         write_client_config(
+            client_config,
             client_id,
             client_secret,
             access_info["access_token"],
