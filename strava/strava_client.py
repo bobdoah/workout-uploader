@@ -35,7 +35,7 @@ def get_client_config(
             data = tomllib.load(f)
     except FileNotFoundError:
         print(f"client config: {client_config} does not exist, skipping read")
-        return (None, None, None, None, None, None)
+        return (None, None, None, None, None)
     return (
         data["client_id"],
         data["client_secret"],
