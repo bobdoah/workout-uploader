@@ -27,12 +27,10 @@ class TokenHandler(HTTPServer):
         HTTPServer.__init__(self, ("localhost", port), handler)
 
 
-def client_config() -> str:
-    return "strava.toml"
-
-
-def get_client_config() -> tuple[int, str, str | None, str | None, int | None]:
-    with open(client_config(), "rb") as f:
+def get_client_config(
+    client_config: str,
+) -> tuple[int, str, str | None, str | None, int | None]:
+    with open(client_config, "rb") as f:
         data = tomllib.load(f)
     return (
         data["client_id"],
@@ -44,6 +42,7 @@ def get_client_config() -> tuple[int, str, str | None, str | None, int | None]:
 
 
 def write_client_config(
+    client_config: str,
     client_id: int,
     client_secret: str,
     access_token: str,
@@ -57,18 +56,23 @@ def write_client_config(
         "refresh_token": refresh_token,
         "expires_at": expires_at,
     }
-    with open(client_config(), "wb") as f:
+    with open(client_config, "wb") as f:
         tomli_w.dump(data, f)
 
 
-def get_authorized_client() -> stravalib.Client:
+def get_authorized_client(client_config: str) -> stravalib.Client:
     client_id, client_secret, access_token, refresh_token, expires_at = (
-        get_client_config()
+        get_client_config(client_config)
     )
     if not access_token or not refresh_token or not expires_at:
         access_token, refresh_token, expires_at = authorize(client_id, client_secret)
         write_client_config(
-            client_id, client_secret, access_token, refresh_token, expires_at
+            client_config,
+            client_id,
+            client_secret,
+            access_token,
+            refresh_token,
+            expires_at,
         )
 
     client = stravalib.Client(access_token)

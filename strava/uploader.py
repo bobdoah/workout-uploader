@@ -34,9 +34,10 @@ def main():
     p.add_argument("-a", "--activity-type", choices=("ride", "run", "walk"))
     p.add_argument("-b", "--bike")
     p.add_argument("-c", "--commute", action=argparse.BooleanOptionalAction)
+    p.add_argument("--config", default="strava.toml")
     args = p.parse_args()
 
-    client = get_authorized_client()
+    client = get_authorized_client(args.config)
     gear_id = get_gear_id(client, args.bike) if args.bike else None
 
     filenames = deque(args.files.readlines())
